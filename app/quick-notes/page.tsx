@@ -127,49 +127,12 @@ export default function QuickNotesPage() {
     setTimeout(() => {
       const systemMessage: Message = {
         id: Date.now() + 1,
-        content: "I've saved your note. You can find it in your dashboard!",
+        content: getRandomSystemResponse(),
         sender: "system",
         timestamp: new Date().toISOString(),
       }
       setMessages((prev) => [...prev, systemMessage])
     }, 1000)
-
-    // Save as a note in the dashboard
-    try {
-      setIsSaving(true)
-      const dashboardNotes = JSON.parse(localStorage.getItem(getStorageKey("dashboard-notes")) || "[]")
-      const newNote = {
-        id: Math.max(0, ...dashboardNotes.map((n: any) => n.id)) + 1,
-        title: inputMessage.trim().slice(0, 50) + (inputMessage.length > 50 ? "..." : ""),
-        content: inputMessage.trim(),
-        category: "Quick Notes",
-        tags: ["quick-note"],
-        isFavorite: false,
-        createdAt: new Date().toISOString().split("T")[0],
-      }
-      dashboardNotes.unshift(newNote)
-      localStorage.setItem(getStorageKey("dashboard-notes"), JSON.stringify(dashboardNotes))
-
-      // Update user's total notes count
-      if (currentUser) {
-        const users = JSON.parse(localStorage.getItem("users") || "[]")
-        const userIndex = users.findIndex((u: any) => u.email === currentUser.email)
-        if (userIndex !== -1) {
-          users[userIndex] = {
-            ...users[userIndex],
-            totalNotes: (users[userIndex].totalNotes || 0) + 1
-          }
-          localStorage.setItem("users", JSON.stringify(users))
-        }
-      }
-
-      toast.success("Note saved successfully!")
-    } catch (error) {
-      console.error("Error saving note:", error)
-      toast.error("Failed to save note")
-    } finally {
-      setIsSaving(false)
-    }
   }
 
   return (

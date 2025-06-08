@@ -18,7 +18,6 @@ export function SignUpForm() {
     name: "",
     email: "",
     password: "",
-    agreeTerms: false
   })
 
   // Password strength indicators
@@ -188,29 +187,7 @@ export function SignUpForm() {
         )}
       </div>
 
-      <div className="flex items-center space-x-2">
-        <Checkbox
-          id="terms"
-          name="agreeTerms"
-          checked={formData.agreeTerms}
-          onCheckedChange={(checked) => 
-            setFormData(prev => ({ ...prev, agreeTerms: checked === true }))
-          }
-          required
-        />
-        <Label htmlFor="terms" className="text-sm text-gray-600">
-          I agree to the{" "}
-          <Link href="/terms" className="text-emerald-600 hover:text-emerald-500">
-            Terms of Service
-          </Link>{" "}
-          and{" "}
-          <Link href="/privacy" className="text-emerald-600 hover:text-emerald-500">
-            Privacy Policy
-          </Link>
-        </Label>
-      </div>
-
-      <Button type="submit" className="w-full" disabled={isLoading || !formData.agreeTerms}>
+      <Button type="submit" className="w-full" disabled={isLoading}>
         {isLoading ? "Creating account..." : "Create account"}
       </Button>
 
