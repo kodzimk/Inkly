@@ -282,18 +282,19 @@ export default function SignUpPage() {
                     <p className="text-white/80">Begin your journey to mindful note-taking</p>
                   </div>
                   
+                
                   <div className="mb-6">
                     <div className="mt-4 max-w-100%">
                       <GoogleLogin
                         onSuccess={handleGoogleSuccess}
                         onError={handleGoogleError}
-                        theme="filled_black"
+                        theme="outline"
                         shape="rectangular"
-                        text="signup_with"
+                        text="signin_with"
                         locale="en"
                         width="100%"
                         useOneTap
-                        context="signup"
+                        context="signin"
                       />
                     </div>
                   </div>

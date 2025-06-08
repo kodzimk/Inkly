@@ -59,7 +59,7 @@ export function SignInForm() {
         </div>
       )}
       
-      <div className="space-y-2">
+      <div className="space-y-2 text-white">
         <Label htmlFor="email">Email</Label>
         <div className="relative">
           <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -74,7 +74,7 @@ export function SignInForm() {
         </div>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2 text-white">
         <div className="flex items-center justify-between">
           <Label htmlFor="password">Password</Label>
           <Link href="/forgot-password" className="text-sm text-emerald-600 hover:text-emerald-500">

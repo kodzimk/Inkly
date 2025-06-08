@@ -3,18 +3,19 @@
 import type React from "react"
 import { useState } from "react"
 import Link from "next/link"
-import { BookOpen, ArrowLeft, Mail, Lock, User, Eye, EyeOff } from "lucide-react"
-import { SignInForm } from "@/components/auth/sign-in-form"
-import { GoogleLogin } from "@react-oauth/google"
+import { BookOpen, ArrowLeft, Mail, Lock, Eye, EyeOff } from "lucide-react"
 import { toast, Toaster } from "sonner"
 import { useRouter } from "next/navigation"
-import { jwtDecode } from "jwt-decode"
-import { sendVerificationEmail } from "@/lib/email-service"
-import { EmailVerification } from "@/components/auth/email-verification"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { GoogleLogin } from "@react-oauth/google"
+import { jwtDecode } from "jwt-decode"
+import { EmailVerification } from "@/components/auth/email-verification"
 
 export default function SignInPage() {
   const router = useRouter()
+  const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [showVerification, setShowVerification] = useState(false)
   const [verificationData, setVerificationData] = useState<{
@@ -22,6 +23,53 @@ export default function SignInPage() {
     token: string
     name: string
   } | null>(null)
+  const [user, setUser] = useState({
+    email: "",
+    password: "",
+  })
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+
+    try {
+      // Get users from localStorage
+      const users = JSON.parse(localStorage.getItem('users') || '[]')
+      const foundUser = users.find((u: any) => u.email === user.email && u.password === user.password)
+
+      if (!foundUser) {
+        toast.error("Invalid email or password")
+        return
+      }
+
+      // Store current user in localStorage
+      localStorage.setItem('currentUser', JSON.stringify({
+        id: foundUser.id,
+        email: foundUser.email,
+        name: foundUser.name,
+        verified: foundUser.verified
+      }))
+
+      if (!foundUser.verified) {
+        // If user is not verified, show verification UI
+        setVerificationData({
+          email: foundUser.email,
+          token: foundUser.verificationToken,
+          name: foundUser.name
+        })
+        setShowVerification(true)
+        toast.info("Please verify your email to continue")
+      } else {
+        toast.success("Signed in successfully!")
+        router.push("/dashboard")
+      }
+    } catch (error) {
+      console.error("Sign in error:", error)
+      toast.error("An error occurred during sign in. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const handleGoogleSuccess = async (credentialResponse: any) => {
     setIsLoading(true)
@@ -57,55 +105,18 @@ export default function SignInPage() {
           router.push("/dashboard")
         }
       } else {
-        // User doesn't exist, proceed with sign up
-        const verificationToken = crypto.randomUUID()
-        const verificationResult = await sendVerificationEmail(
-          decoded.email,
-          decoded.name
-        )
-
-        if (!verificationResult.success) {
-          toast.error(`Failed to send verification email: ${verificationResult.error}`)
-          return
-        }
-
-        // Create new user from Google data
-        const newUser = {
-          id: crypto.randomUUID(),
-          name: decoded.name,
-          email: decoded.email,
-          picture: decoded.picture,
-          verified: false,
-          verificationToken,
-          verificationCode: verificationResult.code,
-          createdAt: new Date().toISOString()
-        }
-
-        // Add new user to users array
-        users.push(newUser)
-        localStorage.setItem('users', JSON.stringify(users))
-
-        // Store current user in localStorage
-        localStorage.setItem('currentUser', JSON.stringify({
-          id: newUser.id,
-          email: newUser.email,
-          name: newUser.name,
-          picture: newUser.picture,
-          verified: newUser.verified
-        }))
-
-        // Show verification UI
-        setVerificationData({
-          email: decoded.email,
-          token: verificationToken,
-          name: decoded.name
+        // User doesn't exist, redirect to sign up
+        toast.error("Account not found", {
+          description: "Please sign up first",
+          action: {
+            label: "Sign Up",
+            onClick: () => router.push("/sign-up")
+          }
         })
-        setShowVerification(true)
-        toast.success("Account created! Please verify your email.")
       }
     } catch (error) {
-      console.error("Google sign in/up error:", error)
-      toast.error("An error occurred. Please try again.")
+      console.error("Google sign in error:", error)
+      toast.error("An error occurred during Google sign in. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -194,11 +205,9 @@ export default function SignInPage() {
                 />
               ) : (
                 <>
-                  <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-white mb-2">Welcome back</h1>
-                    <p className="text-white/80">
-                      Sign in to your account to continue
-                    </p>
+                  <div className="mb-8 text-center">
+                    <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
+                    <p className="text-white/80">Sign in to continue your journey</p>
                   </div>
                   
                   <div className="mb-6">
@@ -206,7 +215,7 @@ export default function SignInPage() {
                       <GoogleLogin
                         onSuccess={handleGoogleSuccess}
                         onError={handleGoogleError}
-                        theme="filled_black"
+                        theme="outline"
                         shape="rectangular"
                         text="signin_with"
                         locale="en"
@@ -216,7 +225,74 @@ export default function SignInPage() {
                       />
                     </div>
                   </div>
-                  <SignInForm />
+
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="email" className="text-white">
+                        Email
+                      </Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/60" />
+                        <Input
+                          id="email"
+                          type="email"
+                          placeholder="you@example.com"
+                          value={user.email}
+                          onChange={(e) => setUser({ ...user, email: e.target.value })}
+                          required
+                          className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/60 focus:border-emerald-400 focus:ring-emerald-400"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="password" className="text-white">
+                          Password
+                        </Label>
+                        <Link href="/forgot-password" className="text-sm text-emerald-300 hover:text-emerald-200">
+                          Forgot password?
+                        </Link>
+                      </div>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/60" />
+                        <Input
+                          id="password"
+                          type={showPassword ? "text" : "password"}
+                          placeholder="••••••••"
+                          value={user.password}
+                          onChange={(e) => setUser({ ...user, password: e.target.value })}
+                          required
+                          className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/60 focus:border-emerald-400 focus:ring-emerald-400"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-2 top-1/2 h-7 w-7 -translate-y-1/2 text-white/60 hover:text-white hover:bg-transparent"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          <span className="sr-only">{showPassword ? "Hide password" : "Show password"}</span>
+                        </Button>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="submit"
+                      disabled={isLoading}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-6 text-lg"
+                    >
+                      {isLoading ? "Signing in..." : "Sign in"}
+                    </Button>
+
+                    <div className="text-center text-white/80">
+                      <span>Don't have an account? </span>
+                      <Link href="/sign-up" className="text-emerald-300 hover:text-emerald-200 font-medium">
+                        Sign up
+                      </Link>
+                    </div>
+                  </form>
                 </>
               )}
             </div>

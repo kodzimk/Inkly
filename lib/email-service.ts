@@ -10,14 +10,17 @@ type EmailResponse = {
   code?: never
 }
 
-// Initialize EmailJS with your public key
-// You'll need to replace these with your actual EmailJS credentials
-const EMAILJS_PUBLIC_KEY = '52Zoc0x4Np6sijp64'
-const EMAILJS_SERVICE_ID = 'service_4knjly6'
-const EMAILJS_TEMPLATE_ID = 'template_spapoir'
+// Get EmailJS configuration from environment variables
+const EMAILJS_PUBLIC_KEY = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY
+const EMAILJS_SERVICE_ID = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID
+const EMAILJS_TEMPLATE_ID = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID
 
 // Initialize EmailJS
-emailjs.init(EMAILJS_PUBLIC_KEY)
+if (EMAILJS_PUBLIC_KEY) {
+  emailjs.init(EMAILJS_PUBLIC_KEY)
+} else {
+  console.error('EmailJS public key is not configured')
+}
 
 // Generate a numeric verification code
 const generateVerificationCode = () => {
@@ -43,15 +46,11 @@ export const sendVerificationEmail = async (
   }
 
   // Validate EmailJS configuration
-  const serviceId = EMAILJS_SERVICE_ID
-  const templateId = EMAILJS_TEMPLATE_ID
-  const publicKey = EMAILJS_PUBLIC_KEY
-
-  if (!serviceId || !templateId || !publicKey) {
+  if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
     console.error('EmailJS configuration missing:', {
-      hasServiceId: !!serviceId,
-      hasTemplateId: !!templateId,
-      hasPublicKey: !!publicKey
+      hasServiceId: !!EMAILJS_SERVICE_ID,
+      hasTemplateId: !!EMAILJS_TEMPLATE_ID,
+      hasPublicKey: !!EMAILJS_PUBLIC_KEY
     })
     return { 
       success: false, 
@@ -72,15 +71,15 @@ export const sendVerificationEmail = async (
       to: toEmail,
       name: userName,
       code: verificationCode,
-      serviceId,
-      templateId
+      serviceId: EMAILJS_SERVICE_ID,
+      templateId: EMAILJS_TEMPLATE_ID
     })
 
     const response = await emailjs.send(
-      serviceId,
-      templateId,
+      EMAILJS_SERVICE_ID,
+      EMAILJS_TEMPLATE_ID,
       templateParams,
-      publicKey
+      EMAILJS_PUBLIC_KEY
     )
 
     if (response.status === 200) {
