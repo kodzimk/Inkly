@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Note } from "@prisma/client"
+import { Note } from "../../app/global"
 import { Button } from "@/components/ui/button"
 import { Plus, FileText, Calendar } from "lucide-react"
 
@@ -48,10 +48,10 @@ export function NotesList({ notes }: NotesListProps) {
           >
             <h3 className="font-medium text-gray-900 truncate">{note.title}</h3>
             <p className="mt-1 text-sm text-gray-500 line-clamp-2">{note.content}</p>
-            <div className="mt-4 flex items-center text-sm text-gray-500">
-              <Calendar className="mr-1 h-4 w-4" />
-              {new Date(note.updatedAt).toLocaleDateString()}
-            </div>
+              <div className="mt-4 flex items-center text-sm text-gray-500">
+                <Calendar className="mr-1 h-4 w-4" />
+                {new Date(note.createdAt).toLocaleDateString()}
+              </div>
           </Link>
         ))}
       </div>

@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import Link from "next/link"
-import { BookOpen, ArrowLeft, User, Mail, Calendar, MapPin, Edit, Camera, Save, X, Upload, Check, Trash2 } from "lucide-react"
+import { BookOpen, ArrowLeft, User, Calendar, Edit, Upload, Check, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,17 +26,30 @@ interface ProfileData {
   streakDays: number
 }
 
+interface User {
+  email: string
+  name: string
+  bio?: string
+  location?: string
+  joinedDate?: string
+  avatar?: string
+  favoriteCategories?: string[]
+  totalNotes?: number
+  favoriteNotes?: number
+  streakDays?: number
+}
+
 export default function ProfilePage() {
   const { toast } = useToast()
   const [isEditing, setIsEditing] = useState(false)
-  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isUploading, setIsUploading] = useState(false)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Load profile data from localStorage
-  const loadProfileData = () => {
+  const loadProfileData = useCallback(() => {
     try {
       const user = JSON.parse(localStorage.getItem('currentUser') || 'null')
       if (!user) {
@@ -46,7 +59,7 @@ export default function ProfilePage() {
 
       // Get user's profile data from localStorage
       const users = JSON.parse(localStorage.getItem('users') || '[]')
-      const userData = users.find((u: any) => u.email === user.email)
+      const userData = users.find((u: User) => u.email === user.email)
 
       if (userData) {
         setProfile({
@@ -72,11 +85,11 @@ export default function ProfilePage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [toast])
 
   useEffect(() => {
     loadProfileData()
-  }, [])
+  }, [loadProfileData])
 
   const [profile, setProfile] = useState<ProfileData>({
     name: "",
@@ -167,7 +180,7 @@ export default function ProfilePage() {
 
       // Save to localStorage
       const users = JSON.parse(localStorage.getItem('users') || '[]')
-      const updatedUsers = users.map((user: any) =>
+      const updatedUsers = users.map((user: User) =>
         user.email === currentUser.email ? { ...user, ...updatedProfile } : user
       )
       localStorage.setItem('users', JSON.stringify(updatedUsers))
@@ -192,6 +205,8 @@ export default function ProfilePage() {
   }
 
   const handleSave = async () => {
+    if (!currentUser) return
+
     try {
       // Update profile without the image (since it's already saved)
       const updatedProfile = {
@@ -201,7 +216,7 @@ export default function ProfilePage() {
 
       // Save to localStorage
       const users = JSON.parse(localStorage.getItem('users') || '[]')
-      const updatedUsers = users.map((user: any) =>
+      const updatedUsers = users.map((user: User) =>
         user.email === currentUser.email ? { ...user, ...updatedProfile } : user
       )
       localStorage.setItem('users', JSON.stringify(updatedUsers))
@@ -327,7 +342,7 @@ export default function ProfilePage() {
                           <Button
                             size="icon"
                             className="h-8 w-8 rounded-full bg-emerald-600 hover:bg-emerald-700"
-                            onClick={() => setPreviewImage(null)}
+                            onClick={removePreviewImage}
                           >
                             <Trash2 className="h-4 w-4" />
                             <span className="sr-only">Remove preview</span>

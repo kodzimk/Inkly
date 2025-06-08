@@ -1,24 +1,20 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import {
   BookOpen,
   Plus,
   Search,
   User,
-  Settings,
   LogOut,
   FileText,
-  Send,
   MoreHorizontal,
   X,
   Trash2,
   Star,
   Grid,
   List,
-  Calendar,
-  Tag,
   PenLine,
 } from "lucide-react"
 
@@ -54,7 +50,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import Link from "next/link"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"    
 import {
   Select,
   SelectContent,
@@ -62,22 +58,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { toast } from "sonner"
+import { Note } from "../../app/global"
 
-// Define the Note type
-interface Note {
-  id: number
-  title: string
-  content: string
-  category: string
-  tags: string[]
-  createdAt: string
-  isFavorite: boolean
+interface User {
+  email: string;
+  totalNotes?: number;
 }
 
 export default function DashboardPage() {
   const router = useRouter()
-  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [notes, setNotes] = useState<Note[]>([])
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [searchQuery, setSearchQuery] = useState("")
@@ -94,9 +84,9 @@ export default function DashboardPage() {
   })
   
   // Get user-specific storage key
-  const getStorageKey = (key: string) => {
+  const getStorageKey = useCallback((key: string) => {
     return currentUser?.email ? `${currentUser.email}_${key}` : key
-  }
+  }, [currentUser?.email])
 
   // Load current user on mount
   useEffect(() => {
@@ -124,7 +114,7 @@ export default function DashboardPage() {
     } catch (error) {
       console.error("Error loading view mode:", error)
     }
-  }, [currentUser])
+  }, [currentUser, getStorageKey])
 
   // Save view mode to localStorage whenever it changes
   useEffect(() => {
@@ -134,7 +124,7 @@ export default function DashboardPage() {
     } catch (error) {
       console.error("Error saving view mode:", error)
     }
-  }, [viewMode, currentUser])
+  }, [viewMode, currentUser, getStorageKey])
 
   // Load notes from localStorage when component mounts
   useEffect(() => {
@@ -147,7 +137,7 @@ export default function DashboardPage() {
     } catch (error) {
       console.error("Error loading notes:", error)
     }
-  }, [currentUser])
+  }, [currentUser, getStorageKey])
 
   // Save notes to localStorage whenever they change
   useEffect(() => {
@@ -157,7 +147,7 @@ export default function DashboardPage() {
     } catch (error) {
       console.error("Error saving notes:", error)
     }
-  }, [notes, currentUser])
+  }, [notes, currentUser, getStorageKey])
 
   // Handle view mode change with explicit function
   const handleViewModeChange = (mode: "grid" | "list") => {
@@ -214,7 +204,7 @@ export default function DashboardPage() {
     // Update user's total notes count
     if (currentUser) {
       const users = JSON.parse(localStorage.getItem("users") || "[]")
-      const userIndex = users.findIndex((u: any) => u.email === currentUser.email)
+      const userIndex = users.findIndex((u: User) => u.email === currentUser.email)
       if (userIndex !== -1) {
         users[userIndex] = {
           ...users[userIndex],
@@ -792,6 +782,13 @@ export default function DashboardPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <div className="text-center text-white/60">
+        Don&apos;t have an account?{" "}
+        <Link href="/sign-up" className="text-emerald-400 hover:text-emerald-300">
+          Sign up
+        </Link>
+      </div>
     </div>
   )
 }

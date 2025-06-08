@@ -1,28 +1,16 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { ArrowLeft, Send, BookOpen } from "lucide-react"
-import Link from "next/link"
+import { ArrowLeft, Send } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { toast } from "sonner"
-import { useRouter } from "next/navigation"
 
 interface Message {
-  id: number
+  id: string
   content: string
-  timestamp: string
-  sender: "user" | "system"
-}
-
-interface Note {
-  id: number
-  title: string
-  content: string
-  category: string
-  tags: string[]
-  createdAt: string
-  isFavorite: boolean
+  role: 'user' | 'assistant'
+  timestamp: Date
 }
 
 const systemResponses = [
@@ -38,58 +26,38 @@ const systemResponses = [
   "That's insightful. How does this relate to your goals?",
 ]
 
-const categories = ["Personal", "Work", "Learning", "Ideas", "Tasks"]
-
-export default function QuickNotesPage() {
+export default function QuickNotes() {
   const router = useRouter()
-  const [currentUser, setCurrentUser] = useState<any>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [inputMessage, setInputMessage] = useState("")
-  const [isSaving, setIsSaving] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Get user-specific storage key
   const getStorageKey = (key: string) => {
-    return currentUser?.email ? `${currentUser.email}_${key}` : key
+    const user = JSON.parse(localStorage.getItem("currentUser") || "null")
+    return user?.email ? `${user.email}_${key}` : key
   }
-
-  // Load current user on mount
-  useEffect(() => {
-    try {
-      const user = JSON.parse(localStorage.getItem("currentUser") || "null")
-      if (!user) {
-        router.push("/")
-        return
-      }
-      setCurrentUser(user)
-    } catch (error) {
-      console.error("Error loading user:", error)
-      router.push("/")
-    }
-  }, [router])
 
   // Load messages from localStorage when component mounts
   useEffect(() => {
-    if (!currentUser) return
     try {
       const savedMessages = localStorage.getItem(getStorageKey("chat-messages"))
       if (savedMessages) {
         setMessages(JSON.parse(savedMessages))
       }
-    } catch (error) {
-      console.error("Error loading messages:", error)
+    } catch {
+      console.error("Error loading messages")
     }
-  }, [currentUser])
+  }, [])
 
   // Save messages to localStorage whenever they change
   useEffect(() => {
-    if (!currentUser) return
     try {
       localStorage.setItem(getStorageKey("chat-messages"), JSON.stringify(messages))
-    } catch (error) {
-      console.error("Error saving messages:", error)
+    } catch {
+      console.error("Error saving messages")
     }
-  }, [messages, currentUser])
+  }, [messages])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -103,127 +71,98 @@ export default function QuickNotesPage() {
     return systemResponses[Math.floor(Math.random() * systemResponses.length)]
   }
 
-  const generateNoteTitle = (content: string) => {
-    // Take first 30 characters or first sentence, whichever is shorter
-    const firstSentence = content.split(/[.!?]/)[0].trim()
-    const title = firstSentence.length > 30 ? firstSentence.substring(0, 30) + "..." : firstSentence
-    return title
-  }
-
-  const handleSendMessage = async () => {
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault()
     if (!inputMessage.trim()) return
 
     const userMessage: Message = {
-      id: Date.now(),
+      id: Date.now().toString(),
       content: inputMessage.trim(),
-      sender: "user",
-      timestamp: new Date().toISOString(),
+      role: 'user',
+      timestamp: new Date(),
     }
 
     setMessages((prev) => [...prev, userMessage])
     setInputMessage("")
 
-    // Simulate system response
+    // Simulate AI response
     setTimeout(() => {
       const systemMessage: Message = {
-        id: Date.now() + 1,
+        id: Date.now().toString(),
         content: getRandomSystemResponse(),
-        sender: "system",
-        timestamp: new Date().toISOString(),
+        role: 'assistant',
+        timestamp: new Date(),
       }
       setMessages((prev) => [...prev, systemMessage])
     }, 1000)
   }
 
-  return (
-    <div className="min-h-screen flex flex-col bg-gray-50 relative">
-      {/* Fixed Background Image */}
-      <div
-        className="fixed inset-0 z-0"
-        style={{
-          backgroundImage: "url('/images/japanese-landscape.jpg')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-          backgroundAttachment: "fixed",
-        }}
-      >
-        <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" />
-      </div>
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      handleSendMessage(e)
+    }
+  }
 
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white">
       {/* Header */}
-      <header className="relative z-10 border-b border-white/20 bg-black/20 backdrop-blur-md">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-white hover:bg-white/20"
-            onClick={() => router.push("/dashboard")}
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
+      <header className="sticky top-0 z-50 border-b bg-white/10 backdrop-blur-md supports-[backdrop-filter]:bg-white/10">
+        <div className="container flex h-16 items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-2 font-bold">
+            <span className="text-white">Quick Notes</span>
+          </div>
+          <Button variant="ghost" className="text-white hover:bg-white/20" onClick={() => router.push('/dashboard')}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Dashboard
           </Button>
-          <div className="w-24" /> {/* Spacer for alignment */}
         </div>
       </header>
 
-      {/* Messages Container */}
-      <div className="relative z-10 flex-1 overflow-y-auto pb-24">
-        <div className="container mx-auto max-w-2xl px-4 py-6 space-y-4">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
-            >
+      {/* Main Content */}
+      <main className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          {/* Messages */}
+          <div className="space-y-4 mb-8">
+            {messages.map((message) => (
               <div
-                className={`max-w-[85%] rounded-lg px-4 py-2 ${
-                  message.sender === "user"
-                    ? "bg-emerald-600/90 backdrop-blur-sm text-white shadow-lg"
-                    : "bg-white/10 backdrop-blur-sm border border-white/20 text-white shadow-lg"
-                }`}
+                key={message.id}
+                className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
               >
-                <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
-                <p className="text-xs mt-1 opacity-70">
-                  {new Date(message.timestamp).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </p>
+                <div
+                  className={`max-w-[85%] rounded-lg px-4 py-2 ${
+                    message.role === "user"
+                      ? "bg-emerald-600/90 backdrop-blur-sm text-white shadow-lg"
+                      : "bg-white/10 backdrop-blur-sm border border-white/20 text-white shadow-lg"
+                  }`}
+                >
+                  <p className="text-sm">{message.content}</p>
+                  <p className="text-xs opacity-50 mt-1">
+                    {message.timestamp.toLocaleTimeString()}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
-      </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
 
-      {/* Sticky Input */}
-      <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-white/20 bg-white/5 backdrop-blur-md">
-        <div className="container mx-auto max-w-2xl px-4 py-3">
-          <div className="relative bg-white/5 backdrop-blur-sm rounded-2xl p-2 border border-white/20 shadow-lg">
+          {/* Input Form */}
+          <form onSubmit={handleSendMessage} className="flex gap-2">
             <Textarea
-              placeholder="Type a message..."
               value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault()
-                  handleSendMessage()
-                }
-              }}
-              className="pr-12 resize-none bg-transparent border-0 text-white placeholder:text-white/60 focus-visible:ring-0 focus-visible:ring-offset-0"
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInputMessage(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Type your message..."
+              className="flex-1 bg-white/10 border-white/20 text-white placeholder:text-white/60 focus:border-emerald-400 focus:ring-emerald-400"
               rows={1}
             />
-            <Button
-              size="icon"
-              className="absolute right-2 bottom-2 bg-emerald-600 hover:bg-emerald-700 rounded-full h-8 w-8 shadow-md"
-              onClick={handleSendMessage}
-              disabled={!inputMessage.trim() || isSaving}
-            >
+            <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700">
               <Send className="h-4 w-4" />
+              <span className="sr-only">Send message</span>
             </Button>
-          </div>
+          </form>
         </div>
-      </div>
+      </main>
     </div>
   )
 } 

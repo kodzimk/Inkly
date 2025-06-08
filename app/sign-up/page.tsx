@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useContext, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { BookOpen, ArrowLeft, Mail, Lock, User, Eye, EyeOff, Check } from "lucide-react"
 import { toast, Toaster } from "sonner"
@@ -11,12 +10,28 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { GoogleLogin } from "@react-oauth/google"
+import { GoogleLogin, CredentialResponse } from "@react-oauth/google"
 import { jwtDecode } from "jwt-decode"
 import { EmailVerification } from "@/components/auth/email-verification"
 import { sendVerificationEmail } from "@/lib/email-service"
 
+interface User {
+  id: string
+  name: string
+  email: string
+  password?: string
+  picture?: string
+  verified: boolean
+  verificationToken: string
+  verificationCode: string
+  createdAt: string
+}
 
+interface DecodedGoogleToken {
+  email: string
+  name: string
+  picture: string
+}
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -54,7 +69,7 @@ export default function SignUpPage() {
       const users = JSON.parse(localStorage.getItem('users') || '[]')
       
       // Check if user already exists
-      if (users.some((u: any) => u.email === user.email)) {
+      if (users.some((u: User) => u.email === user.email)) {
         toast.error("Account already exists", {
           description: "Please sign in instead",
           action: {
@@ -78,7 +93,7 @@ export default function SignUpPage() {
       }
 
       // Create new user object
-      const newUser = {
+      const newUser: User = {
         id: crypto.randomUUID(),
         name: user.name,
         email: user.email,
@@ -117,14 +132,19 @@ export default function SignUpPage() {
     }
   }
 
-  const handleGoogleSuccess = async (credentialResponse: any) => {
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+    if (!credentialResponse.credential) {
+      toast.error("Failed to get credentials from Google")
+      return
+    }
+
     setIsLoading(true)
 
     try {
-      const decoded = jwtDecode(credentialResponse.credential) as { email: string, name: string, picture: string }
+      const decoded = jwtDecode(credentialResponse.credential) as DecodedGoogleToken
       const users = JSON.parse(localStorage.getItem('users') || '[]')
 
-      if (users.some((u: any) => u.email === decoded.email)) {
+      if (users.some((u: User) => u.email === decoded.email)) {
         toast.error("Account already exists", {
           description: "Please sign in instead",
           action: {
@@ -148,7 +168,7 @@ export default function SignUpPage() {
       }
 
       // Create new user from Google data
-      const newUser = {
+      const newUser: User = {
         id: crypto.randomUUID(),
         name: decoded.name,
         email: decoded.email,
@@ -193,7 +213,7 @@ export default function SignUpPage() {
     const users = JSON.parse(localStorage.getItem('users') || '[]')
     const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}')
     
-    const userIndex = users.findIndex((u: any) => u.email === currentUser.email)
+    const userIndex = users.findIndex((u: User) => u.email === currentUser.email)
     if (userIndex !== -1) {
       users[userIndex].verified = true
       localStorage.setItem('users', JSON.stringify(users))
@@ -272,7 +292,7 @@ export default function SignUpPage() {
               {showVerification && verificationData ? (
                 <EmailVerification
                   email={verificationData.email}
-                  verificationToken={verificationData.token}
+
                   onVerified={handleVerified}
                 />
               ) : (

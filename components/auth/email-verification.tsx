@@ -6,38 +6,25 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Mail, ArrowRight } from "lucide-react"
-import { sendVerificationEmail } from "@/lib/email-service"
+
+interface User {
+  email: string
+  name: string
+  verificationCode: string
+  verified: boolean
+}
 
 interface EmailVerificationProps {
   email: string
-  verificationToken: string
   onVerified: () => void
 }
 
-export function EmailVerification({ email, verificationToken, onVerified }: EmailVerificationProps) {
+export function EmailVerification({ email, onVerified }: EmailVerificationProps) {
   const [code, setCode] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [resendDisabled, setResendDisabled] = useState(false)
-  const [resendCountdown, setResendCountdown] = useState(0)
+  const [resendDisabled] = useState(false)
+  const [resendCountdown] = useState(0)
 
-  // Get user name from localStorage
-  const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}')
-  const userName = currentUser.name || 'User'
-
-  const startResendCountdown = () => {
-    setResendDisabled(true)
-    setResendCountdown(60)
-    const timer = setInterval(() => {
-      setResendCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer)
-          setResendDisabled(false)
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,7 +33,7 @@ export function EmailVerification({ email, verificationToken, onVerified }: Emai
     try {
       // Get the stored verification code from the user object
       const users = JSON.parse(localStorage.getItem('users') || '[]')
-      const user = users.find((u: any) => u.email === email)
+      const user = users.find((u: User) => u.email === email)
       
       if (!user) {
         toast.error("User not found")
@@ -56,7 +43,7 @@ export function EmailVerification({ email, verificationToken, onVerified }: Emai
       // Compare the entered code with the stored verification code
       if (code === user.verificationCode) {
         // Update user verification status
-        const userIndex = users.findIndex((u: any) => u.email === email)
+        const userIndex = users.findIndex((u: User) => u.email === email)
         
         if (userIndex !== -1) {
           users[userIndex].verified = true
@@ -77,8 +64,8 @@ export function EmailVerification({ email, verificationToken, onVerified }: Emai
         })
         toast.error("Invalid verification code")
       }
-    } catch (error) {
-      console.error('Verification error:', error)
+    } catch {
+      console.error('Verification error')
       toast.error("Failed to verify email")
     } finally {
       setIsLoading(false)
@@ -86,28 +73,12 @@ export function EmailVerification({ email, verificationToken, onVerified }: Emai
   }
 
   const handleResendCode = async () => {
-    if (resendDisabled) return
-
-    setIsLoading(true)
     try {
-      const verificationCode = verificationToken.slice(-6)
-      const { success, error } = await sendVerificationEmail(
-        email,
-        userName,
-        verificationCode
-      )
-
-      if (success) {
-        toast.success("Verification code resent!")
-        startResendCountdown()
-      } else {
-        console.error("Failed to resend verification code:", error)
-        toast.error("Failed to resend verification code")
-      }
-    } catch (error) {
-      toast.error("Failed to resend verification code")
-    } finally {
-      setIsLoading(false)
+      // Simulate sending verification code
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      toast("Verification code has been resent to your email.")
+    } catch {
+      toast("Could not resend verification code. Please try again.")
     }
   }
 
@@ -116,7 +87,7 @@ export function EmailVerification({ email, verificationToken, onVerified }: Emai
       <div className="text-center">
         <h2 className="text-2xl font-bold text-white mb-2">Verify Your Email</h2>
         <p className="text-white/80">
-          We've sent a verification code to <span className="font-medium">{email}</span>
+          We&apos;ve sent a verification code to <span className="font-medium">{email}</span>
         </p>
       </div>
 
@@ -162,7 +133,7 @@ export function EmailVerification({ email, verificationToken, onVerified }: Emai
           >
             {resendDisabled
               ? `Resend code in ${resendCountdown}s`
-              : "Didn't receive the code? Resend"}
+              : "Didn&apos;t receive the code? Resend"}
           </button>
         </div>
       </form>

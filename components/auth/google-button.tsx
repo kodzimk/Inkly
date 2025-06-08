@@ -1,10 +1,10 @@
 "use client"
 
-import { GoogleLogin } from "@react-oauth/google"
+import { GoogleLogin, CredentialResponse } from "@react-oauth/google"
 import { Button } from "@/components/ui/button"
 
 interface GoogleButtonProps {
-  onSuccess: (response: any) => void
+  onSuccess: (response: CredentialResponse) => void
   onError: () => void
 }
 

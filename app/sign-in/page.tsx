@@ -9,9 +9,23 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { GoogleLogin } from "@react-oauth/google"
-import { jwtDecode } from "jwt-decode"
+import { GoogleLogin, CredentialResponse } from "@react-oauth/google"
 import { EmailVerification } from "@/components/auth/email-verification"
+
+interface FormData {
+  email: string
+  password: string
+}
+
+interface User {
+  email: string
+  name: string
+  avatar: string
+  createdAt: string
+  isVerified: boolean
+  password?: string // Optional for Google sign-in users
+}
+
 
 export default function SignInPage() {
   const router = useRouter()
@@ -23,7 +37,7 @@ export default function SignInPage() {
     token: string
     name: string
   } | null>(null)
-  const [user, setUser] = useState({
+  const [formData, setFormData] = useState<FormData>({
     email: "",
     password: "",
   })
@@ -35,7 +49,7 @@ export default function SignInPage() {
     try {
       // Get users from localStorage
       const users = JSON.parse(localStorage.getItem('users') || '[]')
-      const foundUser = users.find((u: any) => u.email === user.email && u.password === user.password)
+      const foundUser = users.find((u: User) => u.email === formData.email && u.password === formData.password)
 
       if (!foundUser) {
         toast.error("Invalid email or password")
@@ -44,17 +58,17 @@ export default function SignInPage() {
 
       // Store current user in localStorage
       localStorage.setItem('currentUser', JSON.stringify({
-        id: foundUser.id,
         email: foundUser.email,
         name: foundUser.name,
-        verified: foundUser.verified
+        avatar: foundUser.avatar,
+        isVerified: foundUser.isVerified
       }))
 
-      if (!foundUser.verified) {
+      if (!foundUser.isVerified) {
         // If user is not verified, show verification UI
         setVerificationData({
           email: foundUser.email,
-          token: foundUser.verificationToken,
+          token: foundUser.verificationToken || "",
           name: foundUser.name
         })
         setShowVerification(true)
@@ -71,55 +85,50 @@ export default function SignInPage() {
     }
   }
 
-  const handleGoogleSuccess = async (credentialResponse: any) => {
-    setIsLoading(true)
-
+  const handleGoogleSuccess = async (response: CredentialResponse) => {
     try {
-      const decoded = jwtDecode(credentialResponse.credential) as { email: string, name: string, picture: string }
-      const users = JSON.parse(localStorage.getItem('users') || '[]')
-
-      // Find user
-      const foundUser = users.find((u: any) => u.email === decoded.email)
-
-      if (foundUser) {
-        // User exists, proceed with sign in
-        localStorage.setItem('currentUser', JSON.stringify({
-          id: foundUser.id,
-          email: foundUser.email,
-          name: foundUser.name,
-          picture: foundUser.picture,
-          verified: foundUser.verified
-        }))
-
-        if (!foundUser.verified) {
-          // If user is not verified, show verification UI
-          setVerificationData({
-            email: foundUser.email,
-            token: foundUser.verificationToken,
-            name: foundUser.name
-          })
-          setShowVerification(true)
-          toast.info("Please verify your email to continue")
-        } else {
-          toast.success("Signed in successfully!")
-          router.push("/dashboard")
-        }
-      } else {
-        // User doesn't exist, redirect to sign up
-        toast.error("Account not found", {
-          description: "Please sign up first",
-          action: {
-            label: "Sign Up",
-            onClick: () => router.push("/sign-up")
-          }
-        })
+      const credential = response.credential
+      if (!credential) {
+        throw new Error('No credential received from Google')
       }
-    } catch (error) {
-      console.error("Google sign in error:", error)
-      toast.error("An error occurred during Google sign in. Please try again.")
-    } finally {
-      setIsLoading(false)
+
+      // Decode the credential to get user info
+      const decodedToken = JSON.parse(atob(credential.split('.')[1]))
+      const { email, name, picture } = decodedToken
+
+      // Check if user exists
+      const users = JSON.parse(localStorage.getItem('users') || '[]')
+      const existingUser = users.find((user: User) => user.email === email)
+
+      if (existingUser) {
+        // User exists, sign them in
+        localStorage.setItem('currentUser', JSON.stringify(existingUser))
+        toast.success("Welcome back! You have been signed in successfully.")
+        router.push('/dashboard')
+      } else {
+        // Create new user
+        const newUser: User = {
+          email,
+          name,
+          avatar: picture,
+          createdAt: new Date().toISOString(),
+          isVerified: true // Google accounts are pre-verified
+        }
+
+        // Save to localStorage
+        localStorage.setItem('users', JSON.stringify([...users, newUser]))
+        localStorage.setItem('currentUser', JSON.stringify(newUser))
+
+        toast.success("Welcome to Inkly! Your account has been created successfully.")
+        router.push('/dashboard')
+      }
+    } catch {
+      toast.error("Could not sign in with Google. Please try again.")
     }
+  }
+
+  const handleGoogleError = () => {
+    toast.error("Failed to sign in with Google")
   }
 
   const handleVerified = () => {
@@ -127,21 +136,17 @@ export default function SignInPage() {
     const users = JSON.parse(localStorage.getItem('users') || '[]')
     const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}')
     
-    const userIndex = users.findIndex((u: any) => u.email === currentUser.email)
+    const userIndex = users.findIndex((u: User) => u.email === currentUser.email)
     if (userIndex !== -1) {
-      users[userIndex].verified = true
+      users[userIndex].isVerified = true
       localStorage.setItem('users', JSON.stringify(users))
       
-      currentUser.verified = true
+      currentUser.isVerified = true
       localStorage.setItem('currentUser', JSON.stringify(currentUser))
     }
 
     toast.success("Email verified successfully! Redirecting to dashboard...")
     router.push("/dashboard")
-  }
-
-  const handleGoogleError = () => {
-    toast.error("Failed to sign in with Google")
   }
 
   return (
@@ -200,7 +205,7 @@ export default function SignInPage() {
               {showVerification && verificationData ? (
                 <EmailVerification
                   email={verificationData.email}
-                  verificationToken={verificationData.token}
+
                   onVerified={handleVerified}
                 />
               ) : (
@@ -237,8 +242,8 @@ export default function SignInPage() {
                           id="email"
                           type="email"
                           placeholder="you@example.com"
-                          value={user.email}
-                          onChange={(e) => setUser({ ...user, email: e.target.value })}
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                           required
                           className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/60 focus:border-emerald-400 focus:ring-emerald-400"
                         />
@@ -260,8 +265,8 @@ export default function SignInPage() {
                           id="password"
                           type={showPassword ? "text" : "password"}
                           placeholder="••••••••"
-                          value={user.password}
-                          onChange={(e) => setUser({ ...user, password: e.target.value })}
+                          value={formData.password}
+                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                           required
                           className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/60 focus:border-emerald-400 focus:ring-emerald-400"
                         />
@@ -287,7 +292,7 @@ export default function SignInPage() {
                     </Button>
 
                     <div className="text-center text-white/80">
-                      <span>Don't have an account? </span>
+                      <span>Don&apos;t have an account? </span>
                       <Link href="/sign-up" className="text-emerald-300 hover:text-emerald-200 font-medium">
                         Sign up
                       </Link>
